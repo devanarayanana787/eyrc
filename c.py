@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.callback_groups import ReentrantCallbackGroup
 from sensor_msgs.msg import Image
-from std_msgs.msg import String  # --- ADDED: To handle the status message ---
+# from std_msgs.msg import String  <-- REMOVED: No longer needed
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
@@ -28,7 +28,7 @@ TEAM_ID = 2203
 FERTILIZER_ARUCO_ID = 3 
 FERTILIZER_BASE_ARUCO_ID = 6 
 FRAME_NAMES = {
-    FERTILIZER_ARUCO_ID: f'{TEAM_ID}_fertiliser_can',     # ID 3 is renamed to *_can
+    FERTILIZER_ARUCO_ID: f'{TEAM_ID}_fertiliser_1',     # ID 3 is renamed to *_can
     FERTILIZER_BASE_ARUCO_ID: f'{TEAM_ID}_ebot_base' # ID 6 is renamed to *_ebot_base
 }
 
@@ -40,9 +40,9 @@ class VisionAndTFPublisher(Node):
     """
     ROS 2 Node to:
     1. Detect ArUco markers, store their 'base_link' TF after a confidence threshold,
-       and continuously broadcast the locked TF (original code 1 logic).
+       and continuously broadcast the locked TF.
     2. Detect 'bad fruits' using color/contour, find their 3D position using depth 
-       data, and continuously broadcast their TF (original code 2 logic).
+       data, and continuously broadcast their TF.
     """
     def __init__(self):
         super().__init__('vision_and_tf_publisher')
@@ -50,8 +50,7 @@ class VisionAndTFPublisher(Node):
         self.cv_image = None
         self.depth_image = None 
         
-        # --- ADDED: Flag to control execution ---
-        self.is_detection_enabled = False 
+        # --- MODIFIED: Removed is_detection_enabled flag (Always True now) ---
 
         # Camera Intrinsics (Hardcoded values are typically loaded from a sensor_msgs/CameraInfo topic)
         self.centerCamX = 642.724365234375
@@ -92,10 +91,7 @@ class VisionAndTFPublisher(Node):
             Image, '/camera/depth/image_raw', self.depthimagecb, 10, callback_group=self.cb_group
         )
 
-        # --- ADDED: Subscription for status check ---
-        self.create_subscription(
-            String, '/detection_status', self.detection_status_cb, 10, callback_group=self.cb_group
-        )
+        # --- MODIFIED: Removed /detection_status subscription ---
         
         # Main loop timer 
         self.create_timer(0.1, self.process_vision_and_tf, callback_group=self.cb_group)
@@ -105,17 +101,11 @@ class VisionAndTFPublisher(Node):
             cv2.resizeWindow('Vision and TF Publisher', 1280, 720)
         
         self.get_logger().info(f"VisionAndTFPublisher node started. Team ID: {TEAM_ID}")
-        self.get_logger().info("Waiting for /detection_status trigger...")
+        self.get_logger().info("Vision System Active (Continuous Mode)")
 
     ## --- CALLBACKS ---
     
-    # --- ADDED: Callback to enable vision logic ---
-    def detection_status_cb(self, msg):
-        """Enable vision only when 'DOCK_STATION' is received."""
-        if "DOCK_STATION" in msg.data:
-            if not self.is_detection_enabled:
-                self.is_detection_enabled = True
-                self.get_logger().info(f"Received Trigger: {msg.data}. Vision System ENABLED.")
+    # --- MODIFIED: Removed detection_status_cb ---
 
     def colorimagecb(self, data):
         """Callback function for color image topic."""
@@ -479,10 +469,8 @@ class VisionAndTFPublisher(Node):
 
     # --- MAIN PROCESS LOOP ---
     def process_vision_and_tf(self):
-        # --- Check flag before running logic ---
-        if not self.is_detection_enabled:
-            return
-
+        # --- MODIFIED: Removed 'if not self.is_detection_enabled: return' logic ---
+        
         if self.cv_image is None:
             return
 
